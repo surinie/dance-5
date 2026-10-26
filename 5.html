@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&display=swap" rel="stylesheet">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="icon.png" type="image/png">
+<title>dance</title>
+
+<style>
+  :root {
+    --red: #FF3511;
+    --font-serif: 'Source Serif 4', 'Pretendard Variable', Pretendard, serif;
+    --font-sans: 'Pretendard Variable', Pretendard, -apple-system, sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #000;
+  }
+
+  body {
+    position: relative;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  button {
+    font: inherit;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;       /* 가운데정렬 (양끝정렬 아님) */
+    text-align-last: center;
+    text-justify: auto;
+  }
+
+  /* ══ 화면(screen) 단위 전환 ══════════════════════ */
+  .screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .screen[hidden] { display: none !important; }
+
+  /* ══ Screen 1 : 영상 ═════════════════════════════ */
+  #screen-1 { background: #000; }
+
+  .video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 0;
+  }
+
+  /* 인터랙션 캔버스 (영상 위, UI 아래) */
+  .fx {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    touch-action: none;
+    cursor: crosshair;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* 좌측 세로 타이틀 (아래 → 위로 읽힘) */
+  .chapter-title {
+    position: absolute;
+    top: 496px;
+    left: 78px;
+    z-index: 2;
+    font-family: var(--font-serif);
+    font-weight: 500;
+    font-size: 88px;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    color: var(--red);
+    white-space: nowrap;
+    writing-mode: vertical-rl;
+    transform: translateY(-50%) rotate(180deg);   /* 글자 수와 관계없이 세로 중앙 */
+    pointer-events: none;
+  }
+
+  /* 우측 상단 일시정지 버튼 */
+  .pause-btn {
+    position: absolute;
+    top: 36px;
+    right: 40px;
+    z-index: 2;
+    width: 78px;
+    height: 78px;
+    border-radius: 50%;
+    background: var(--red);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 11px;
+  }
+  .pause-btn i {
+    display: block;
+    width: 10px;
+    height: 34px;
+    border-radius: 0;
+    background: #fff;
+  }
+
+  /* 하단 진행바 */
+  .progress {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 28px;
+    z-index: 2;
+    background: rgba(255, 255, 255, 0.5);   /* 아직 재생되지 않은 구간 */
+    pointer-events: none;
+  }
+  .progress-fill {
+    width: 0%;
+    height: 100%;
+    background: #fff;   /* 불투명도 100 */
+  }
+
+  /* ══ Screen 2 : 결과(프레임 선택) 화면 ═══════════
+     기준 화면 1728 × 977px — 레퍼런스(1728×1117) 비율 그대로 0.8747배 */
+  #screen-2 { background: #fff; }
+
+  .result-main {
+    position: absolute;
+    top: 77px;
+    left: 153px;
+    width: 964px;
+    height: 623px;
+    background: #D9D9D9;
+    display: block;
+  }
+
+  .thumb {
+    position: absolute;
+    top: 753px;
+    width: 226px;
+    height: 146px;
+    padding: 0;
+    background: #D9D9D9;
+    display: block;
+  }
+  .thumb canvas { display: block; width: 100%; height: 100%; }
+  .thumb.sel { outline: 3px solid var(--red); outline-offset: 0; }
+  .t1 { left: 153px; }
+  .t2 { left: 399px; }
+  .t3 { left: 645px; }
+  .t4 { left: 891px; }
+
+  .opt-label {
+    position: absolute;
+    left: 1187px;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 26px;
+    line-height: 37px;
+    color: #000;
+  }
+  .opt-value {
+    position: absolute;
+    left: 1350px;
+    width: 140px;
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 23px;
+    line-height: 37px;
+    color: #000;
+    text-align: center;
+  }
+  .arrow {
+    position: absolute;
+    width: 32px;
+    height: 37px;
+    padding: 0;
+    background: var(--red);
+  }
+  .arrow-l { left: 1292px; clip-path: polygon(100% 0, 0 50%, 100% 100%); }
+  .arrow-r { left: 1516px; clip-path: polygon(0 0, 100% 50%, 0 100%); }
+  .row-title { top: 122px; }
+  .row-date  { top: 243px; }
+
+  .round {
+    position: absolute;
+    top: 781px;
+    width: 118px;
+    height: 118px;
+    border-radius: 50%;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 22px;
+    line-height: 1.25;
+    border: 1.5px solid var(--red);
+  }
+  .round-save  { left: 1308px; background: #fff; color: var(--red); }
+  .round-other { left: 1457px; background: var(--red); color: #fff; }
+
+  /* ══ 오버레이 + 팝업 ═════════════════════════════ */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    background: rgba(0, 0, 0, 0.4);
+    display: none;
+  }
+  .overlay.on { display: block; }
+
+  .popup {
+    position: fixed;
+    z-index: 11;
+    flex: none;
+    /* 기준 화면(1728×1117)의 중앙 위치에 고정.
+       창이 더 작아져도 팝업은 밀리지 않고 창 경계에서 함께 잘림.
+       창이 더 커지면 화면 중앙을 유지. */
+    left: max(calc((1728px - var(--pw)) / 2), calc(50vw - var(--pw) / 2));
+    top:  max(calc((1117px - var(--ph)) / 2), calc(50vh - var(--ph) / 2));
+    display: none;
+  }
+  .popup.on { display: block; }
+
+  /* 팝업 1 : 안내 */
+  .popup-intro {
+    /* 안내 팝업은 항상 화면 정중앙 */
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 824px;
+    height: 369px;
+    background: var(--red);
+  }
+  .popup-intro .popup-text {
+    position: absolute;
+    top: 49px;
+    left: 40px;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 26px;
+    line-height: 43px;
+    color: #fff;
+    white-space: nowrap;
+  }
+  .popup-intro .btn-start {
+    position: absolute;
+    top: 172px;
+    left: 620px;
+    width: 173px;
+    height: 173px;
+    border-radius: 50%;
+    background: #fff;
+    font-family: var(--font-serif);
+    font-weight: 500;
+    font-size: 32px;
+    line-height: 1.15;
+    color: var(--red);
+    text-align: center;
+  }
+
+  /* 팝업 2 / 4 : 선택 (배경 사각형 없이 원 3개만) */
+  .popup-choice {
+    --pw: 828px;
+    --ph: 230px;
+    width: 828px;
+    height: 230px;
+    background: none;
+  }
+  .popup-choice .opt {
+    position: absolute;
+    top: -100px;
+    flex: none;
+    width: 230px;
+    height: 230px;
+    border-radius: 50%;
+    background: #fff;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 28px;
+    line-height: 1;
+    color: var(--red);
+    white-space: nowrap;
+  }
+  .popup-choice .opt-primary {
+    background: var(--red);
+    color: #fff;
+  }
+
+  /* 팝업 2 배치: 나가기 | 계속 추기(빨강) | 다시 추기 */
+  #popup-pause .o-exit     { left: 0; }
+  #popup-pause .o-continue { left: 299px; }
+  #popup-pause .o-restart  { left: 598px; }
+
+  /* 팝업 4 배치: 나가기 | 다시 추기 | 다음(빨강) */
+  #popup-end .o-exit    { left: 0; }
+  #popup-end .o-restart { left: 299px; }
+  #popup-end .o-next    { left: 598px; }
+</style>
+</head>
+<body>
+
+  <!-- ══ Screen 1 ══ -->
+  <section class="screen" id="screen-1">
+    <video class="video" id="video" src="mp5.mp4" preload="auto" playsinline></video>
+    <canvas class="fx" id="cv"></canvas>
+
+    <h1 class="chapter-title">finale</h1>
+
+    <button class="pause-btn" id="btn-pause" aria-label="일시정지"><i></i><i></i></button>
+
+    <div class="progress"><div class="progress-fill" id="progress-fill"></div></div>
+  </section>
+
+  <!-- ══ Screen 2 : 결과 ══ -->
+  <section class="screen" id="screen-2" hidden>
+    <canvas class="result-main" id="result-main"></canvas>
+
+    <button class="thumb t1" data-i="0"><canvas></canvas></button>
+    <button class="thumb t2" data-i="1"><canvas></canvas></button>
+    <button class="thumb t3" data-i="2"><canvas></canvas></button>
+    <button class="thumb t4" data-i="3"><canvas></canvas></button>
+
+    <span class="opt-label row-title">title</span>
+    <button class="arrow arrow-l row-title" id="title-prev" aria-label="이전"></button>
+    <span class="opt-value row-title" id="title-val">없음</span>
+    <button class="arrow arrow-r row-title" id="title-next" aria-label="다음"></button>
+
+    <span class="opt-label row-date">date</span>
+    <button class="arrow arrow-l row-date" id="date-prev" aria-label="이전"></button>
+    <span class="opt-value row-date" id="date-val">없음</span>
+    <button class="arrow arrow-r row-date" id="date-next" aria-label="다음"></button>
+
+    <button class="round round-save" id="btn-save">저장</button>
+    <button class="round round-other" id="btn-other">다른 춤<br>추기</button>
+  </section>
+
+  <!-- ══ 오버레이 ══ -->
+  <div class="overlay on" id="overlay"></div>
+
+  <!-- 팝업 1 : 진입 안내 -->
+  <div class="popup popup-intro on" id="popup-intro">
+    <p class="popup-text">클릭한 채 드래그하면 선들이 솟아오릅니다.<br>커서의 움직임을 따라 오로라가 생성됩니다.</p>
+    <button class="btn-start" id="btn-start"><span>Let’s<br>dance!</span></button>
+  </div>
+
+  <!-- 팝업 2 : 일시정지 -->
+  <div class="popup popup-choice" id="popup-pause">
+    <button class="opt o-exit" id="pause-exit">나가기</button>
+    <button class="opt opt-primary o-continue" id="pause-continue">계속 추기</button>
+    <button class="opt o-restart" id="pause-restart">다시 추기</button>
+  </div>
+
+  <!-- 팝업 4 : 영상 종료 -->
+  <div class="popup popup-choice" id="popup-end">
+    <button class="opt o-exit" id="end-exit">나가기</button>
+    <button class="opt o-restart" id="end-restart">다시 추기</button>
+    <button class="opt opt-primary o-next" id="end-next">다음</button>
+  </div>
+
+<script>
+  const $ = id => document.getElementById(id);
+
+  /* 챕터 메뉴(chapter.html)는 다른 저장소(dance)에 있으므로 절대 주소 사용 */
+  const CHAPTER_URL = 'https://surinie.github.io/dance/chapter.html';
+
+  const video   = $('video');
+  const fill    = $('progress-fill');
+  const overlay = $('overlay');
+  const popups  = {
+    intro: $('popup-intro'),
+    pause: $('popup-pause'),
+    end:   $('popup-end')
+  };
+
+  /* ── 팝업 열기 / 닫기 ── */
+  function openPopup(name) {
+    closePopups();
+    overlay.classList.add('on');
+    popups[name].classList.add('on');
+  }
+  function closePopups() {
+    overlay.classList.remove('on');
+    Object.values(popups).forEach(p => p.classList.remove('on'));
+  }
+
+  /* ── 재생 제어 ── */
+  function play() {
+    closePopups();
+    const p = video.play();
+    if (p && p.catch) p.catch(err => console.error('재생 실패:', err));
+  }
+  function restart() {
+    clearFx();
+    video.currentTime = 0;
+    play();
+  }
+
+  /* ── 로드 오류 확인용 (F12 → Console) ── */
+  video.addEventListener('error', () => {
+    const e = video.error;
+    console.error('video error code:', e && e.code, e && e.message);
+    // 1 ABORTED / 2 NETWORK(경로·서버) / 3 DECODE(코덱·손상) / 4 SRC_NOT_SUPPORTED(코덱·형식·경로)
+  });
+
+  /* ── 진행바 ── */
+  let raf = null;
+  function updateProgress() {
+    const d = video.duration;
+    fill.style.width = d ? (video.currentTime / d * 100) + '%' : '0%';
+  }
+  function tick() {
+    updateProgress();
+    raf = requestAnimationFrame(tick);
+  }
+  video.addEventListener('play',  () => { cancelAnimationFrame(raf); tick(); });
+  video.addEventListener('pause', () => { cancelAnimationFrame(raf); updateProgress(); });
+  video.addEventListener('seeked', updateProgress);
+
+  /* ── 영상 종료 → 팝업 4 ── */
+  video.addEventListener('ended', () => {
+    cancelAnimationFrame(raf);
+    fill.style.width = '100%';
+    openPopup('end');
+  });
+
+
+  /* ══ 인터랙션 (5 · finale) : 위로 솟는 선 / 드래그하면 오로라 같은 획 + 반짝이 ═══ */
+  const cv  = $('cv');
+  const ctx = cv.getContext('2d');
+
+  const SPARK_COLOR = '#FFF9BF';
+  const STEP        = 14;      // 드래그 시 선이 생성되는 간격(px)
+  const LINE_W      = 3.6;     // 선 굵기(px)
+  const LIFE        = 2000;    // 선이 사라지기까지(ms)
+  const FADE_OUT    = 1000;    // 그중 사라지는 구간(ms)
+  const OPACITY     = .6;      // 선의 기본 불투명도
+  const MAX_RAYS    = 700;
+  const MAX_SPARKS  = 160;
+
+  let W = 0, H = 0;
+  let rays = [], sparks = [];
+  let drawing = false, last = null, pathDist = 0, wave = 0;
+  let vt = 0;                  // 재생 중에만 흐르는 가상 시계(ms)
+  let lastReal = performance.now();
+
+  function resize() {
+    const d = Math.min(devicePixelRatio || 1, 2);
+    W = innerWidth; H = innerHeight;
+    cv.width = W * d; cv.height = H * d;
+    ctx.setTransform(d, 0, 0, d, 0, 0);
+  }
+  addEventListener('resize', resize);
+  resize();
+
+  const isRunning = () => !video.paused && !video.ended;
+
+  function clearFx() {
+    rays = []; sparks = []; drawing = false; last = null;
+    frames = []; targets = [];
+  }
+
+  /* 위로 솟는 얇은 선 하나 */
+  function addRay(x, y, len, vy, phase = Math.random() * 6.28) {
+    rays.push({ x, y0: y, len, vy, born: vt, phase });
+    if (rays.length > MAX_RAYS) rays.shift();
+  }
+
+  function addSpark(x, y) {
+    sparks.push({
+      x, y,
+      vx: (Math.random() - .5) * 14,
+      vy: -(14 + Math.random() * 30),
+      r: 3.2 + Math.random() * 4.6,
+      born: vt, life: 900 + Math.random() * 800,
+      tw: 4 + Math.random() * 6, phase: Math.random() * 6.28
+    });
+    if (sparks.length > MAX_SPARKS) sparks.shift();
+  }
+
+  cv.addEventListener('pointerdown', e => {
+    if (!isRunning()) return;
+    try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+    drawing = true;
+    last = { x: e.clientX, y: e.clientY };
+    pathDist = 0;
+    wave = Math.random() * 6.28;
+    addRay(e.clientX, e.clientY, 300 + Math.random() * 90, 70);   // 클릭: 선 하나가 솟아오름
+  });
+
+  cv.addEventListener('pointermove', e => {
+    if (!drawing || !isRunning()) return;
+    const x = e.clientX, y = e.clientY;
+    let dx = x - last.x, dy = y - last.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < STEP) return;
+    const n = Math.floor(dist / STEP);
+    dx /= dist; dy /= dist;
+    for (let i = 1; i <= n; i++) {
+      pathDist += STEP;
+      const px = last.x + dx * STEP * i, py = last.y + dy * STEP * i;
+      // 완만한 두 물결을 겹쳐 길이가 천천히 오르내리는 오로라 커튼 (선마다 무작위 값을 섞지 않음)
+      const k = (Math.sin(pathDist * .010 + wave) * .62 + Math.sin(pathDist * .023 + wave * 1.7) * .38 + 1) / 2;
+      const len = 220 + k * 160;
+      addRay(px, py, len, 50 + k * 14, pathDist * .018 + wave);
+      if (Math.random() < .2) addSpark(px + (Math.random() - .5) * 36, py - Math.random() * len);
+    }
+    last = { x: last.x + dx * STEP * n, y: last.y + dy * STEP * n };
+  });
+
+  const stop = () => { drawing = false; last = null; };
+  cv.addEventListener('pointerup', stop);
+  cv.addEventListener('pointercancel', stop);
+  cv.addEventListener('lostpointercapture', stop);
+
+  /* 작은 네 갈래 반짝이 */
+  function drawSpark(x, y, r, alpha) {
+    ctx.globalAlpha = alpha;
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const a = -Math.PI / 2 + i * Math.PI / 4, rr = i % 2 ? r * .28 : r;
+      ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function fxLoop(real) {
+    const dt = Math.min((real - lastReal) / 1000, .033);
+    lastReal = real;
+    const running = isRunning();
+    if (running) vt += dt * 1000; else stop();
+    const now = vt;
+
+    ctx.clearRect(0, 0, W, H);
+    ctx.lineWidth = LINE_W;
+    ctx.lineCap = 'butt';                // 아래쪽 끝은 둥글리지 않고 반듯하게
+
+    // 선 : 위로 솟으며 커지고, 위쪽 끝은 투명하게 흐려지고, 시간이 지나면 사라짐
+    for (let i = rays.length - 1; i >= 0; i--) {
+      const r = rays[i], ageMs = now - r.born;
+      if (ageMs > LIFE) { rays.splice(i, 1); continue; }
+      const age = ageMs / 1000;
+      const grow = Math.min(1, age / .35), L = r.len * (1 - Math.pow(1 - grow, 3));
+      const y = r.y0 - r.vy * age;
+      const x = r.x + Math.sin(age * 2.2 + r.phase) * 3;          // 살랑이는 커튼
+      const a = Math.min(1, ageMs / 150) * (ageMs > LIFE - FADE_OUT ? (LIFE - ageMs) / FADE_OUT : 1) * OPACITY;
+      const g = ctx.createLinearGradient(0, y, 0, y - L);
+      g.addColorStop(0, `rgba(255,255,255,${a})`);
+      g.addColorStop(.9, `rgba(255,255,255,${a})`);    // 거의 끝까지 선명하게 유지
+      g.addColorStop(1, 'rgba(255,255,255,0)');           // 위쪽 끝 10%만 흐려짐
+      ctx.strokeStyle = g;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - L); ctx.stroke();
+    }
+
+    // 반짝이 : 살아 있는 선 주위에서 간헐적으로 생성
+    if (running && rays.length) {
+      const p = Math.min(rays.length / 40, 1) * .22;
+      if (Math.random() < p) {
+        const r = rays[Math.floor(Math.random() * rays.length)];
+        const age = (now - r.born) / 1000;
+        const L = r.len * Math.min(1, age / .35);
+        addSpark(r.x + (Math.random() - .5) * 30, r.y0 - r.vy * age - Math.random() * L);
+      }
+    }
+    ctx.fillStyle = SPARK_COLOR;
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      const s = sparks[i], ageMs = now - s.born;
+      if (ageMs > s.life) { sparks.splice(i, 1); continue; }
+      if (running) { s.x += s.vx * dt; s.y += s.vy * dt; }
+      const k = ageMs / s.life;
+      drawSpark(s.x, s.y, s.r, Math.min(1, k * 6) * Math.min(1, (1 - k) * 3));   // 깜빡임 없이 서서히 나타났다 사라짐
+    }
+    ctx.globalAlpha = 1;
+
+    // 랜덤 타이밍 프레임 캡처 (그려진 직후)
+    if (running && targets.length && video.currentTime >= targets[0]) {
+      targets.shift();
+      captureFrame();
+    }
+    requestAnimationFrame(fxLoop);
+  }
+  requestAnimationFrame(fxLoop);
+
+
+  /* ══ 랜덤 타이밍 프레임 캡처 (영상 + 인터랙션, UI 제외) ══════════ */
+  const FRAME_COUNT = 4;
+  let frames  = [];     // 캡처된 canvas 4개
+  let targets = [];     // 캡처할 재생 시각(초), 오름차순
+
+  function pickTargets() {
+    const d = video.duration;
+    if (!d || !isFinite(d)) return;
+    const lo = d * .08, hi = d * .92;
+    targets = Array.from({ length: FRAME_COUNT }, () => lo + Math.random() * (hi - lo)).sort((a, b) => a - b);
+  }
+  video.addEventListener('play', () => {
+    if (!frames.length && !targets.length) pickTargets();
+  });
+
+  function captureFrame() {
+    const c = document.createElement('canvas');
+    c.width = cv.width; c.height = cv.height;
+    const g = c.getContext('2d');
+    g.fillStyle = '#000'; g.fillRect(0, 0, c.width, c.height);
+    const vw = video.videoWidth, vh = video.videoHeight;
+    if (vw && vh) {
+      const k = Math.max(c.width / vw, c.height / vh);
+      const dw = vw * k, dh = vh * k;
+      g.drawImage(video, (c.width - dw) / 2, (c.height - dh) / 2, dw, dh);   // object-fit: cover 와 동일
+    }
+    g.drawImage(cv, 0, 0);                                                    // 인터랙션(선·반짝이)
+    frames.push(c);
+  }
+  video.addEventListener('ended', () => {
+    while (frames.length < FRAME_COUNT) captureFrame();   // 놓친 프레임 보충
+  });
+
+  /* ══ 결과 화면 ═══════════════════════════════════════════ */
+  const BOX_W = 1102, BOX_H = 712;   // 합성용 설계 좌표 (표시는 896×579로 비율 축소)
+  const POS = ['없음', '상단', '가운데', '하단'];
+  let DATE_TEXT = '';
+  function todayText() {
+    const d = new Date();
+    const p = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())}`;
+  }
+  DATE_TEXT = todayText();
+  const TITLE_LEFT = 3;                     // 제목 이미지 left (설계 좌표)
+  const TITLE_TOP = [0, 17, 222, 500];       // 제목 이미지 top (미리보기 좌표)
+  let selFrame = 0, titleIdx = 0, dateIdx = 0;
+
+  const titleImg = new Image();
+  titleImg.onload = () => renderResult();
+  titleImg.src = 'title.png';
+
+  function coverDraw(g, src, w, h) {
+    const k = Math.max(w / src.width, h / src.height);
+    const dw = src.width * k, dh = src.height * k;
+    g.drawImage(src, (w - dw) / 2, (h - dh) / 2, dw, dh);
+  }
+
+  // 프레임 + 제목 + 날짜를 canvas c에 합성 (미리보기·저장 공용)
+  function compose(c, frame) {
+    const g = c.getContext('2d');
+    const k = c.width / BOX_W;
+    g.clearRect(0, 0, c.width, c.height);
+    g.fillStyle = '#D9D9D9'; g.fillRect(0, 0, c.width, c.height);
+    if (frame) coverDraw(g, frame, c.width, c.height);
+
+    if (titleIdx > 0 && titleImg.naturalWidth) {
+      g.drawImage(titleImg, TITLE_LEFT * k, TITLE_TOP[titleIdx] * k, titleImg.naturalWidth * k, titleImg.naturalHeight * k);
+    }
+    if (dateIdx > 0) {
+      g.save();
+      g.fillStyle = '#fff';
+      g.font = `500 ${16 * k}px "Pretendard Variable", Pretendard, sans-serif`;
+      g.textBaseline = 'middle';
+      const len = g.measureText(DATE_TEXT).width;
+      const startY = dateIdx === 1 ? 20 * k + len
+                   : dateIdx === 2 ? (BOX_H * k + len) / 2
+                   :                 (BOX_H - 20) * k;
+      g.translate(1065 * k, startY);
+      g.rotate(-Math.PI / 2);                 // 아래 → 위로 읽힘
+      g.fillText(DATE_TEXT, 0, 0);
+      g.restore();
+    }
+  }
+
+  const resMain = $('result-main');
+  const thumbs  = [...document.querySelectorAll('.thumb')];
+
+  function fitCanvas(c, w, h) {
+    const d = Math.min(devicePixelRatio || 1, 2) * 2;
+    c.width = w * d; c.height = h * d;
+  }
+  fitCanvas(resMain, 964, 623);
+  thumbs.forEach(t => fitCanvas(t.firstElementChild, 226, 146));
+
+  function renderResult() {
+    compose(resMain, frames[selFrame]);
+    thumbs.forEach((t, i) => {
+      const c = t.firstElementChild, g = c.getContext('2d');
+      g.fillStyle = '#D9D9D9'; g.fillRect(0, 0, c.width, c.height);
+      if (frames[i]) coverDraw(g, frames[i], c.width, c.height);
+      t.classList.toggle('sel', i === selFrame);
+    });
+    $('title-val').textContent = POS[titleIdx];
+    $('date-val').textContent  = POS[dateIdx];
+  }
+  function initResult() {
+    DATE_TEXT = todayText();
+    while (frames.length < FRAME_COUNT && video.videoWidth) captureFrame();
+    selFrame = Math.min(selFrame, Math.max(frames.length - 1, 0));
+    renderResult();
+  }
+
+  thumbs.forEach(t => t.addEventListener('click', () => { selFrame = +t.dataset.i; renderResult(); }));
+  const cycle = (v, d) => (v + d + POS.length) % POS.length;
+  $('title-prev').addEventListener('click', () => { titleIdx = cycle(titleIdx, -1); renderResult(); });
+  $('title-next').addEventListener('click', () => { titleIdx = cycle(titleIdx,  1); renderResult(); });
+  $('date-prev').addEventListener('click',  () => { dateIdx  = cycle(dateIdx,  -1); renderResult(); });
+  $('date-next').addEventListener('click',  () => { dateIdx  = cycle(dateIdx,   1); renderResult(); });
+
+  /* 저장: 현재 큰 화면(프레임 + 제목 + 날짜)을 PNG로 */
+  $('btn-save').addEventListener('click', async () => {
+    const f = frames[selFrame];
+    if (!f) return;
+    try { await document.fonts.ready; } catch (e) {}
+    const c = document.createElement('canvas');
+    c.width = f.width;
+    c.height = Math.round(f.width * BOX_H / BOX_W);
+    compose(c, f);
+    try {
+      c.toBlob(blob => {
+        if (!blob) { alert('저장에 실패했습니다.'); return; }
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'billy-elliot-finale.png';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      }, 'image/png');
+    } catch (err) {
+      console.error(err);
+      alert('보안 정책 때문에 저장할 수 없습니다.\nfile:// 이 아닌 로컬 서버(localhost)로 열어 주세요.');
+    }
+  });
+
+  $('btn-other').addEventListener('click', () => { location.href = CHAPTER_URL; });
+
+  /* ── 팝업 1 : 시작 ── */
+  $('btn-start').addEventListener('click', play);
+
+  /* ── 일시정지 버튼 → 팝업 2 ── */
+  $('btn-pause').addEventListener('click', () => {
+    video.pause();
+    openPopup('pause');
+  });
+
+  /* ── 팝업 2 ── */
+  $('pause-exit').addEventListener('click', () => { location.href = CHAPTER_URL; });
+  $('pause-continue').addEventListener('click', play);
+  $('pause-restart').addEventListener('click', restart);
+
+  /* ── 팝업 4 ── */
+  $('end-exit').addEventListener('click', () => { location.href = CHAPTER_URL; });
+  $('end-restart').addEventListener('click', restart);
+  $('end-next').addEventListener('click', () => showScreen('screen-2'));
+
+  /* ── 같은 페이지 안에서 화면 전환 ── */
+  function showScreen(id) {
+    closePopups();
+    video.pause();
+    document.querySelectorAll('.screen').forEach(s => { s.hidden = (s.id !== id); });
+    if (id === 'screen-2') initResult();
+  }
+</script>
+</body>
+</html>
