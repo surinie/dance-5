@@ -475,7 +475,7 @@
 
   function clearFx() {
     rays = []; sparks = []; drawing = false; last = null;
-    frames = []; targets = [];
+    frames = []; targets = []; picked = false;
   }
 
   /* 위로 솟는 얇은 선 하나 */
@@ -592,6 +592,7 @@
     ctx.globalAlpha = 1;
 
     // 랜덤 타이밍 프레임 캡처 (그려진 직후)
+    if (running && !picked) pickTargets();
     if (running && targets.length && video.currentTime >= targets[0]) {
       targets.shift();
       captureFrame();
@@ -606,15 +607,18 @@
   let frames  = [];     // 캡처된 canvas 4개
   let targets = [];     // 캡처할 재생 시각(초), 오름차순
 
+  let picked = false;   // 캡처 시점을 이미 정했는지
   function pickTargets() {
     const d = video.duration;
-    if (!d || !isFinite(d)) return;
-    const lo = d * .08, hi = d * .92;
-    targets = Array.from({ length: FRAME_COUNT }, () => lo + Math.random() * (hi - lo)).sort((a, b) => a - b);
+    if (!d || !isFinite(d)) return false;          // 영상 길이를 아직 모르면 나중에 다시 시도
+    // 영상을 FRAME_COUNT 구간으로 나누고 구간마다 하나씩 무작위로 → 영상 전체에서 골고루, 최소 FRAME_COUNT장 확보
+    const lo = d * .08, span = d * .84 / FRAME_COUNT;
+    targets = Array.from({ length: FRAME_COUNT }, (_, i) => lo + span * (i + .1 + Math.random() * .8));
+    picked = true;
+    return true;
   }
-  video.addEventListener('play', () => {
-    if (!frames.length && !targets.length) pickTargets();
-  });
+  video.addEventListener('loadedmetadata', () => { if (!picked && !frames.length) pickTargets(); });
+  video.addEventListener('play', () => { if (!picked && !frames.length) pickTargets(); });
 
   function captureFrame() {
     const c = document.createElement('canvas');
