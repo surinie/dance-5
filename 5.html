@@ -197,10 +197,35 @@
     padding: 0;
     background: var(--red);
   }
-  .arrow-l { left: 1292px; clip-path: polygon(100% 0, 0 50%, 100% 100%); }
-  .arrow-r { left: 1516px; clip-path: polygon(0 0, 100% 50%, 0 100%); }
+  .arrow-l { left: 1316px; clip-path: polygon(100% 0, 0 50%, 100% 100%); }
+  .arrow-r { left: 1492px; clip-path: polygon(0 0, 100% 50%, 0 100%); }
   .row-title { top: 122px; }
   .row-date  { top: 243px; }
+
+  /* 이미지 다시 뽑기 줄 : 라벨 + 우측 버튼 (title·date 줄 아래) */
+  .row-redraw {
+    position: absolute;
+    left: 1187px;
+    top: 364px;
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    height: 37px;
+  }
+  .row-redraw .opt-label { position: static; white-space: nowrap; }
+  .redraw-btn {
+    flex: none;
+    height: 37px;
+    padding: 0 20px;
+    border-radius: 19px;
+    background: var(--red);
+    color: #fff;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 20px;
+    line-height: 1;
+    white-space: nowrap;
+  }
 
   .round {
     position: absolute;
@@ -349,6 +374,11 @@
     <span class="opt-value row-date" id="date-val">없음</span>
     <button class="arrow arrow-r row-date" id="date-next" aria-label="다음"></button>
 
+    <div class="row-redraw">
+      <span class="opt-label">이미지 다시 뽑기</span>
+      <button class="redraw-btn" id="redraw-btn">1회 남음</button>
+    </div>
+
     <button class="round round-save" id="btn-save">저장</button>
     <button class="round round-other" id="btn-other">다른 춤<br>추기</button>
   </section>
@@ -475,7 +505,7 @@
 
   function clearFx() {
     rays = []; sparks = []; drawing = false; last = null;
-    frames = []; targets = []; picked = false;
+    frames = []; targets = []; picked = false; useB = false; rolled = false;
   }
 
   /* 위로 솟는 얇은 선 하나 */
@@ -603,8 +633,9 @@
 
 
   /* ══ 랜덤 타이밍 프레임 캡처 (영상 + 인터랙션, UI 제외) ══════════ */
-  const FRAME_COUNT = 4;
-  let frames  = [];     // 캡처된 canvas 4개
+  const SET_SIZE    = 4;                // 한 번에 보여줄 프레임 수
+  const FRAME_COUNT = SET_SIZE * 2;     // 영상 재생 중 총 8장 캡처 (처음 4장 + 다시 뽑기용 4장)
+  let frames  = [];     // 캡처된 canvas 8개 (짝수 번째 = 첫 세트, 홀수 번째 = 다시 뽑기 세트: 두 세트 모두 영상 전체에서 골고루)
   let targets = [];     // 캡처할 재생 시각(초), 오름차순
 
   let picked = false;   // 캡처 시점을 이미 정했는지
@@ -622,7 +653,8 @@
 
   function captureFrame() {
     const c = document.createElement('canvas');
-    c.width = cv.width; c.height = cv.height;
+    const k0 = Math.min(1, 1920 / cv.width);            // 8장 보관: 가로 1920px 상한으로 메모리 절약
+    c.width = Math.round(cv.width * k0); c.height = Math.round(cv.height * k0);
     const g = c.getContext('2d');
     g.fillStyle = '#000'; g.fillRect(0, 0, c.width, c.height);
     const vw = video.videoWidth, vh = video.videoHeight;
@@ -631,7 +663,7 @@
       const dw = vw * k, dh = vh * k;
       g.drawImage(video, (c.width - dw) / 2, (c.height - dh) / 2, dw, dh);   // object-fit: cover 와 동일
     }
-    g.drawImage(cv, 0, 0);                                                    // 인터랙션(선·반짝이)
+    g.drawImage(cv, 0, 0, c.width, c.height);                                                    // 인터랙션(선·반짝이)
     frames.push(c);
   }
   video.addEventListener('ended', () => {
@@ -651,6 +683,8 @@
   const TITLE_LEFT = 3;                     // 제목 이미지 left (설계 좌표)
   const TITLE_TOP = [0, 17, 222, 500];       // 제목 이미지 top (미리보기 좌표)
   let selFrame = 0, titleIdx = 0, dateIdx = 0;
+  let useB = false, rolled = false;     // 다시 뽑기: 현재 둘째 세트를 보는지 / 이미 한 번 뽑았는지
+  const curFrames = () => frames.filter((_, i) => i % 2 === (useB ? 1 : 0));
 
   const titleImg = new Image();
   titleImg.onload = () => renderResult();
@@ -700,23 +734,30 @@
   thumbs.forEach(t => fitCanvas(t.firstElementChild, 226, 146));
 
   function renderResult() {
-    compose(resMain, frames[selFrame]);
+    const cf = curFrames();
+    compose(resMain, cf[selFrame]);
     thumbs.forEach((t, i) => {
       const c = t.firstElementChild, g = c.getContext('2d');
       g.fillStyle = '#D9D9D9'; g.fillRect(0, 0, c.width, c.height);
-      if (frames[i]) coverDraw(g, frames[i], c.width, c.height);
+      if (cf[i]) coverDraw(g, cf[i], c.width, c.height);
       t.classList.toggle('sel', i === selFrame);
     });
     $('title-val').textContent = POS[titleIdx];
     $('date-val').textContent  = POS[dateIdx];
+    $('redraw-btn').textContent = !rolled ? '1회 남음' : (useB ? '이전 이미지로' : '다시 뽑은 이미지로');
   }
   function initResult() {
     DATE_TEXT = todayText();
     while (frames.length < FRAME_COUNT && video.videoWidth) captureFrame();
-    selFrame = Math.min(selFrame, Math.max(frames.length - 1, 0));
+    selFrame = Math.min(selFrame, Math.max(curFrames().length - 1, 0));
     renderResult();
   }
 
+  /* 이미지 다시 뽑기: 처음 한 번은 새 4장으로, 이후에는 두 세트를 오갈 수 있음 */
+  $('redraw-btn').addEventListener('click', () => {
+    if (!rolled) { rolled = true; useB = true; } else { useB = !useB; }
+    renderResult();
+  });
   thumbs.forEach(t => t.addEventListener('click', () => { selFrame = +t.dataset.i; renderResult(); }));
   const cycle = (v, d) => (v + d + POS.length) % POS.length;
   $('title-prev').addEventListener('click', () => { titleIdx = cycle(titleIdx, -1); renderResult(); });
@@ -726,7 +767,7 @@
 
   /* 저장: 현재 큰 화면(프레임 + 제목 + 날짜)을 PNG로 */
   $('btn-save').addEventListener('click', async () => {
-    const f = frames[selFrame];
+    const f = curFrames()[selFrame];
     if (!f) return;
     try { await document.fonts.ready; } catch (e) {}
     const c = document.createElement('canvas');
